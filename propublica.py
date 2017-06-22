@@ -7,10 +7,9 @@ import csv
 # Spee, Lampoon, Gilbert & Sullivan, Hasty Pudding, Crimson, Crimson Trust, Owl, Owl Capital Management
 # Krokodiloes, Glee, Model Congress Dubai, Band, Yearbook, Debate, Collegium Musicum, US-China Reltions
 # In order to use this script on specific organizations, find their propublica numbers from the website
-pronums = ["43078945", "42631286", "42631286", "42645068", "41425590", "42426396",
-           "222780253", "41696700", "204744523", "43573739", "42628384", "460697343",
-           "43009105", "42456752", "202775261", "46042150", "42597463", "42587675",
-           "204741249"]
+pronums = ["43078945", "42631286", "42645068", "41425590", "42426396", "222780253",
+           "41696700", "204744523", "43573739", "42628384", "460697343", "43009105",
+           "42456752", "202775261", "46042150", "42597463", "42587675", "204741249"]
 
 with open("data.csv", "wb") as csv_file:
     writer = csv.writer(csv_file, delimiter=",")
