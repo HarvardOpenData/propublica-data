@@ -1,31 +1,83 @@
 import json
 import urllib2
 import csv
+import time
 
-# the output file will include official names
-# here is a list below just for reference
-# Spee, Lampoon, Gilbert & Sullivan, Hasty Pudding, Crimson, Crimson Trust, Owl, Owl Capital Management
-# Krokodiloes, Glee, Model Congress Dubai, Band, Yearbook, Debate, Collegium Musicum, US-China Reltions
-# In order to use this script on specific organizations, find their propublica numbers from the website
-pronums = ["43078945", "42631286", "42645068", "41425590", "42426396", "222780253",
-           "41696700", "204744523", "43573739", "42628384", "460697343", "43009105",
-           "42456752", "202775261", "46042150", "42597463", "42587675", "204741249"]
+# keep track of start time
+overallstart = time.time()
 
-with open("data.csv", "wb") as csv_file:
+print "Starting script..."
+
+# collect list of orgs to analyze
+pronums = []
+with open("listoforgs.csv", "r") as csv_file:
+    reader = csv.reader(csv_file)
+    next(reader)
+    for row in reader:
+        pronums.append(row[0])
+
+# collect the manual data that was human-read from the pdfs
+# store the info in a dictionary format with the pdfurl as key
+manualdata = {}
+reader = csv.DictReader(open("manualdata.csv"))
+for row in reader:
+    key = row.pop('PDF URL')
+    manualdata[key] = row
+
+# write up all the data in a finaldata.csv
+with open("finaldata.csv", "wb") as csv_file:
     writer = csv.writer(csv_file, delimiter=",")
-    toprow = ["Club Name", "Propublica Number", "Tax Year", "Total Revenue", "Total Functional Expenses",
+    header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
+              "PDF URL", "Total Revenue", "Total Functional Expenses",
               "Net Income", "Total Assets", "Total Liabilities", "Net Assets"]
-    writer.writerow(toprow)
+    writer.writerow(header)
+
+    # for every propublica organization
     for pronum in pronums:
+
+        # keep track of the time it takes to analyze each org
+        start = time.time()
         url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + pronum + ".json"
-        clubjson = json.loads(urllib2.urlopen(url).read())
-        officialname = clubjson["organization"]["name"]
-        for filing in clubjson["filings_with_data"]:
+        orgjson = json.loads(urllib2.urlopen(url).read())
+        officialname = orgjson["organization"]["name"]
+
+        # for all the years that have direct data in the API, grab the data
+        for filing in orgjson["filings_with_data"]:
+            datasrc = "Auto"
             year = filing["tax_prd_yr"]
+            pdfurl = filing["pdf_url"]
             totrev = filing["totrevenue"]
             totexp = filing["totfuncexpns"]
             netinc = int(totrev) - int(totexp)
             totass = filing["totassetsend"]
             totlia = filing["totliabend"]
             netass = int(totass) - int(totlia)
-            writer.writerow([officialname, pronum, year, totrev, totexp, netinc, totass, totlia, netass])
+            writer.writerow([pronum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+
+        # for all the years without direct data, check if we have it in our manual data
+        for filing in orgjson["filings_without_data"]:
+            datasrc = "Manual"
+            year = filing["tax_prd_yr"]
+            pdfurl = filing["pdf_url"]
+            try:
+                pdfdata = manualdata[pdfurl]
+            except:
+                pdfdata = {}
+            totrev = pdfdata.get("Total Revenue", "NA")
+            totexp = pdfdata.get("Total Expenses", "NA")
+            netinc = pdfdata.get("Net Income", "NA")
+            totass = pdfdata.get("Total Assets", "NA")
+            totlia = pdfdata.get("Total Liabilities", "NA")
+            netass = pdfdata.get("Net Assets", "NA")
+            writer.writerow([pronum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+
+        # end time
+        end = time.time()
+
+        # print time spent on this org
+        print "Completed " + officialname + " in " + str(round((end - start), 2)) + "s"
+
+overallend = time.time()
+
+# print total time spent
+print "Total time: " + str(round((overallend - overallstart), 2)) + "s"
