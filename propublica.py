@@ -9,7 +9,7 @@ manualdata.csv (any data that is only available via pdf should be filled
                 into this file manually)
 
 Output:
-finaldata.csv
+finaldata.csv (data autograbbed from the API merged with manual data)
 
 """
 
@@ -17,6 +17,36 @@ import json
 import urllib2
 import csv
 import time
+
+def get_list_of_orgs(file_loc):
+    """
+    Get the list of organizations to analyze. Assumes
+    the first column of the CSV has the organization numbers.
+    """
+    orgnums = []
+    with open(file_loc, "r") as csv_file:
+        reader = csv.reader(csv_file)
+        next(reader)
+        for row in reader:
+            orgnums.append(row[0])
+    return orgnums
+
+def get_manual_data(file_loc):
+    """
+    Store the human-read data from the pdfs into
+    a dictionary format with the pdfurl as the key
+    """
+    manualdata = {}
+    reader = csv.DictReader(open(file_loc))
+    for row in reader:
+        key = row.pop('PDF URL')
+        manualdata[key] = row
+    return manualdata
+
+def lookup_org(orgnum):
+    url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + orgnum + ".json"
+    orgjson = json.loads(urllib2.urlopen(url).read())
+    return orgjson
 
 def main():
     """Compiles data into csv file"""
@@ -26,21 +56,8 @@ def main():
 
     print "Starting script..."
 
-    # collect list of orgs to analyze
-    pronums = []
-    with open("listoforgs.csv", "r") as csv_file:
-        reader = csv.reader(csv_file)
-        next(reader)
-        for row in reader:
-            pronums.append(row[0])
-
-    # collect the manual data that was human-read from the pdfs
-    # store the info in a dictionary format with the pdfurl as key
-    manualdata = {}
-    reader = csv.DictReader(open("manualdata.csv"))
-    for row in reader:
-        key = row.pop('PDF URL')
-        manualdata[key] = row
+    orgnums = get_list_of_orgs("listoforgs.csv")
+    manualdata = get_manual_data("manualdata.csv")
 
     # write up all the data in a finaldata.csv
     with open("finaldata.csv", "wb") as csv_file:
@@ -51,12 +68,15 @@ def main():
         writer.writerow(header)
 
         # for every propublica organization
-        for pronum in pronums:
+        for orgnum in orgnums:
 
             # keep track of the time it takes to analyze each org
             start = time.time()
-            url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + pronum + ".json"
-            orgjson = json.loads(urllib2.urlopen(url).read())
+
+            # grab all the data on this org
+            orgjson = lookup_org(orgnum)
+
+            # grab the name
             officialname = orgjson["organization"]["name"]
 
             # for all the years that have direct data in the API, grab the data
@@ -70,7 +90,7 @@ def main():
                 totass = filing["totassetsend"]
                 totlia = filing["totliabend"]
                 netass = int(totass) - int(totlia)
-                writer.writerow([pronum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+                writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
 
             # for all the years without direct data, check if we have it in our manual data
             for filing in orgjson["filings_without_data"]:
@@ -87,7 +107,7 @@ def main():
                 totass = pdfdata.get("Total Assets", "NA")
                 totlia = pdfdata.get("Total Liabilities", "NA")
                 netass = pdfdata.get("Net Assets", "NA")
-                writer.writerow([pronum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+                writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
 
             # end time
             end = time.time()
