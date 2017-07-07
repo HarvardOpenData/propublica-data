@@ -26,10 +26,13 @@ def get_list_of_orgs(file_loc):
     orgnums = []
     with open(file_loc, "r") as csv_file:
         reader = csv.reader(csv_file)
+        # avoid header row
         next(reader)
+        # extract organization number
         for row in reader:
             orgnums.append(row[0])
     return orgnums
+
 
 def get_manual_data(file_loc):
     """
@@ -43,10 +46,12 @@ def get_manual_data(file_loc):
         manualdata[key] = row
     return manualdata
 
+
 def lookup_org(orgnum):
     url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + orgnum + ".json"
     orgjson = json.loads(urllib2.urlopen(url).read())
     return orgjson
+
 
 def main():
     """Compiles data into csv file"""
@@ -119,6 +124,7 @@ def main():
 
     # print total time spent
     print "Total time: " + str(round((overallend - overallstart), 2)) + "s"
+
 
 if __name__ == "__main__":
     main()
