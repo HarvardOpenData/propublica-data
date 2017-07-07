@@ -21,3 +21,7 @@ To install, just run `pip install jupyter` in your terminal. [See here for more 
 To open the Jupyter notebooks, run `jupyter notebook` in your terminal. A browser tab will pop open; click on a notebook to open it.
 
 To run our final script, use `python propublica.py`.
+
+## About
+
+This is a project of the [Harvard Open Data Project](http://harvard-open-data-project.github.io/), a student-faculty collaboration dedicated to opening and analyzing Harvard data to empower our community members to improve campus life.
