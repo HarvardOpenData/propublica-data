@@ -11,10 +11,6 @@ manualdata.csv (any data that is only available via pdf should be filled
 Output:
 finaldata.csv (data autograbbed from the API merged with manual data)
 
-
-
-By the Harvard Open Data Project, copyright (c) 2017
-
 """
 
 import json
