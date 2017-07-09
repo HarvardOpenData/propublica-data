@@ -12,10 +12,14 @@ Output:
 finaldata.csv (data autograbbed from the API merged with manual data)
 """
 
+from __future__ import print_function
 import csv
 import json
 import time
 import urllib2
+
+LIST_OF_ORGS_FILE = "listoforgs.csv"
+MANUAL_DATA_FILE = "manualdata.csv"
 
 def get_list_of_orgs(list_of_orgs_file):
     """Gets list of organizations. Assumes first column has the organization
@@ -82,7 +86,7 @@ def parse_org_filings(org_json, manual_data):
         org_data["filings"][filing_data["year"]] = filing_data
     return org_data
 
-def write_org_filings(org_data, write_function):
+def write_org_data(org_data, write_function):
     """Takes a dict of org filings and writes it to csv"""
     for filing_year in org_data["filings"]:
         filing_data = org_data["filings"][filing_year]
@@ -97,17 +101,18 @@ def main():
     """Compiles data into csv file"""
     overall_start_time = time.time()
 
-    print "Starting script..."
+    print("Starting script...")
 
-    org_nums = get_list_of_orgs("listoforgs.csv")
-    manual_data = get_manual_data("manualdata.csv")
+    org_nums = get_list_of_orgs(LIST_OF_ORGS_FILE)
+    manual_data = get_manual_data(MANUAL_DATA_FILE)
 
     # write up all the data in a finaldata.csv
     with open("finaldata.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter=",")
         header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
                   "PDF URL", "Total Revenue", "Total Functional Expenses",
-                  "Net Income", "Total Assets", "Total Liabilities", "Net Assets"]
+                  "Net Income", "Total Assets", "Total Liabilities",
+                  "Net Assets"]
         writer.writerow(header)
 
         # for every propublica organization
@@ -115,16 +120,16 @@ def main():
             start_time = time.time()
 
             org_json = lookup_org(org_num)
-            org_filings = parse_org_filings(org_json, manual_data)
-            write_org_filings(org_filings, writer.writerow)
-
-            official_name = org_json["organization"]["name"]
+            org_data = parse_org_filings(org_json, manual_data)
+            write_org_data(org_data, writer.writerow)
 
             end_time = time.time()
-            print "Completed "+official_name+" in "+str(round((end_time - start_time), 2))+"s"
+            print("Completed "+org_data["official_name"]+" in "+
+                  str(round((end_time - start_time), 2))+"s")
 
     overall_end_time = time.time()
-    print "Total time: " + str(round((overall_end_time - overall_start_time), 2)) + "s"
+    print ("Total time: " + str(round((overall_end_time - overall_start_time),
+                                      2)) + "s")
 
 if __name__ == "__main__":
     main()
