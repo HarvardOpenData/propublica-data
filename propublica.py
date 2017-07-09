@@ -17,43 +17,42 @@ import json
 import time
 import urllib2
 
-def get_list_of_orgs(file_loc):
-    """Get the list of organizations to analyze. Assumes the first column of
-the CSV has the organization numbers."""
-    orgnums = []
-    with open(file_loc, "r") as csv_file:
+def get_list_of_orgs(list_of_orgs_file):
+    """Gets list of organizations. Assumes first column has the organization
+numbers."""
+    org_nums = []
+    with open(list_of_orgs_file, "r") as csv_file:
         reader = csv.reader(csv_file)
-        # avoid header row
+        # Avoid header row
         next(reader)
-        # extract organization number
         for row in reader:
-            orgnums.append(row[0])
-    return orgnums
+            org_nums.append(row[0])
+    return org_nums
 
-def get_manual_data(file_loc):
-    """Store the human-read data from the pdfs into a dictionary format with
-the pdfurl as the key """
-    manualdata = {}
-    reader = csv.DictReader(open(file_loc))
+def get_manual_data(manual_data_file):
+    """Stores data from a csv into a dictionary format with the pdfurl as the
+key """
+    manual_data = {}
+    reader = csv.DictReader(open(manual_data_file))
     for row in reader:
         key = row.pop('PDF URL')
-        manualdata[key] = row
-    return manualdata
+        manual_data[key] = row
+    return manual_data
 
-def lookup_org(orgnum):
-    """Looks up org by orgnum. Returns json"""
-    url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + orgnum + ".json"
-    orgjson = json.loads(urllib2.urlopen(url).read())
-    return orgjson
+def lookup_org(org_num):
+    """Looks up org by orgnum. Returns corresponding json from ProPublica"""
+    url = "https://projects.propublica.org/nonprofits/api/v2/organizations/"+org_num+".json"
+    org_json = json.loads(urllib2.urlopen(url).read())
+    return org_json
 
-def parse_org_filings(orgjson):
+def parse_org_filings(org_json):
     """Turns json w/org data to dict for csv"""
     org_data = {}
-    org_data["official_name"] = orgjson["organization"]["name"]
-    org_data["pronum"] = orgjson["organization"]["id"]
+    org_data["official_name"] = org_json["organization"]["name"]
+    org_data["pronum"] = org_json["organization"]["id"]
     org_filings = {}
     org_data["filings"] = org_filings
-    for filing in orgjson["filings_with_data"]:
+    for filing in org_json["filings_with_data"]:
         filing_data = {}
         filing_data["source"] = "Auto"
         filing_data["year"] = filing["tax_prd_yr"]
@@ -69,10 +68,10 @@ def parse_org_filings(orgjson):
 
 def write_org_filings(org_data, write_function):
     """Takes a dict of org filings and writes it to csv"""
-    officialname = org_data["official_name"]
-    orgnum = org_data["pronum"]
+    official_name = org_data["official_name"]
+    org_num = org_data["pronum"]
     for filing_year in org_data["filings"]:
-        filing_data = org_data["filings"][filing_year] 
+        filing_data = org_data["filings"][filing_year]
         datasrc = filing_data["source"]
         year = filing_data["year"]
         pdfurl = filing_data["pdfurl"]
@@ -82,11 +81,7 @@ def write_org_filings(org_data, write_function):
         totass = filing_data["totass"]
         totlia = filing_data["totlia"]
         netass = filing_data["netass"]
-        write_function([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
-
-def write_to_csv():
-    """Writes a dict with multiple filling years to csv"""
-    pass
+        write_function([org_num, official_name, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
 
 def main():
     """Compiles data into csv file"""
@@ -94,8 +89,8 @@ def main():
 
     print "Starting script..."
 
-    orgnums = get_list_of_orgs("listoforgs.csv")
-    manualdata = get_manual_data("manualdata.csv")
+    org_nums = get_list_of_orgs("listoforgs.csv")
+    manual_data = get_manual_data("manualdata.csv")
 
     # write up all the data in a finaldata.csv
     with open("finaldata.csv", "wb") as csv_file:
@@ -106,36 +101,17 @@ def main():
         writer.writerow(header)
 
         # for every propublica organization
-        for orgnum in orgnums:
+        for org_num in org_nums:
             start_time = time.time()
 
-            #-----
-            orgjson = lookup_org(orgnum)
-            org_filings = parse_org_filings(orgjson)
+            org_json = lookup_org(org_num)
+            org_filings = parse_org_filings(org_json)
             write_org_filings(org_filings, writer.writerow)
 
-            #-----
-            # grab all the data on this org
-            # orgjson = lookup_org(orgnum)
-
-            # grab the name
-            officialname = orgjson["organization"]["name"]
-
-            # for all the years that have direct data in the API, grab the data
-            # for filing in orgjson["filings_with_data"]:
-                # datasrc = "Auto"
-                # year = filing["tax_prd_yr"]
-                # pdfurl = filing["pdf_url"]
-                # totrev = filing["totrevenue"]
-                # totexp = filing["totfuncexpns"]
-                # netinc = int(totrev) - int(totexp)
-                # totass = filing["totassetsend"]
-                # totlia = filing["totliabend"]
-                # netass = int(totass) - int(totlia)
-                # writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+            official_name = org_json["organization"]["name"]
 
             # for all the years without direct data, check if we have it in our manual data
-            for filing in orgjson["filings_without_data"]:
+            for filing in org_json["filings_without_data"]:
                 datasrc = "Manual"
                 year = filing["tax_prd_yr"]
                 pdfurl = filing["pdf_url"]
@@ -149,10 +125,10 @@ def main():
                 totass = pdfdata.get("Total Assets", "NA")
                 totlia = pdfdata.get("Total Liabilities", "NA")
                 netass = pdfdata.get("Net Assets", "NA")
-                writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
+                writer.writerow([org_num, official_name, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
 
             end_time = time.time()
-            print "Completed " + officialname + " in " + str(round((end_time -
+            print "Completed " + official_name + " in " + str(round((end_time -
                                                                     start_time), 2)) + "s"
 
     overall_end_time = time.time()
@@ -160,6 +136,8 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+    # For debugging
     # org_json = lookup_org("43078945")
     # org_data = parse_org_filings(org_json)
     # write_org_filings(org_data)
