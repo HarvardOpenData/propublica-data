@@ -1,130 +1,149 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Creates a csv file with the financial data of orgs on Propublica.
+Creates a csv file containing the financial data of specified organizations
+using ProPublica.
 
 Inputs:
-listoforgs.csv (the list of propublica numbers)
-manualdata.csv (any data that is only available via pdf should be filled
-                into this file manually)
+LIST_OF_ORGS_FILE (the list of propublica numbers)
+MANUAL_DATA_FILE (any data that is only available via pdf should be filled into
+this file manually)
 
 Output:
 finaldata.csv (data autograbbed from the API merged with manual data)
-
 """
 
-import json
-import urllib2
+from __future__ import print_function
 import csv
+import json
 import time
+import urllib2
 
-def get_list_of_orgs(file_loc):
-    """
-    Get the list of organizations to analyze. Assumes
-    the first column of the CSV has the organization numbers.
-    """
-    orgnums = []
-    with open(file_loc, "r") as csv_file:
+LIST_OF_ORGS_FILE = "listoforgs.csv"
+MANUAL_DATA_FILE = "manualdata.csv"
+
+def get_list_of_orgs(list_of_orgs_file):
+    """Returns list of orgs. Assumes first column is the ProPublica numbers."""
+    org_nums = []
+    with open(list_of_orgs_file, "r") as csv_file:
         reader = csv.reader(csv_file)
-        # avoid header row
+        # Avoid header row
         next(reader)
-        # extract organization number
         for row in reader:
-            orgnums.append(row[0])
-    return orgnums
+            org_nums.append(row[0])
+    return org_nums
 
-
-def get_manual_data(file_loc):
-    """
-    Store the human-read data from the pdfs into
-    a dictionary format with the pdfurl as the key
-    """
-    manualdata = {}
-    reader = csv.DictReader(open(file_loc))
+def get_manual_data(manual_data_file):
+    """Stores data from a csv into a dict format with the pdfurl as the key."""
+    manual_data = {}
+    reader = csv.DictReader(open(manual_data_file))
     for row in reader:
         key = row.pop('PDF URL')
-        manualdata[key] = row
-    return manualdata
+        manual_data[key] = row
+    return manual_data
 
+def lookup_org(org_num):
+    """Looks up org by ProPublica num. Returns json from ProPublica"""
+    url = "https://projects.propublica.org/nonprofits/api/v2/organizations/"+org_num+".json"
+    org_json = json.loads(urllib2.urlopen(url).read())
+    return org_json
 
-def lookup_org(orgnum):
-    url = "https://projects.propublica.org/nonprofits/api/v2/organizations/" + orgnum + ".json"
-    orgjson = json.loads(urllib2.urlopen(url).read())
-    return orgjson
+def parse_org_data(org_json, manual_data):
+    """Turns json w/org data into dict for csv"""
+    org_data = {}
+    org_data["official_name"] = org_json["organization"]["name"]
+    org_data["pronum"] = org_json["organization"]["id"]
+    org_data["filings"] = {}
+    for filing in org_json["filings_with_data"]:
+        filing_data = {}
+        # TODO: Somehow factor out the fields
+        filing_data["source"] = "Auto"
+        filing_data["year"] = filing["tax_prd_yr"]
+        filing_data["pdfurl"] = filing["pdf_url"]
+        filing_data["totrev"] = filing["totrevenue"]
+        filing_data["totexp"] = filing["totfuncexpns"]
+        filing_data["netinc"] = filing["totrevenue"] - filing["totfuncexpns"]
+        filing_data["totass"] = filing["totassetsend"]
+        filing_data["totlia"] = filing["totliabend"]
+        filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
+        org_data["filings"][filing_data["year"]] = filing_data
+    for filing in org_json["filings_without_data"]:
+        incomplete_filings = []
+        filing_data = {}
+        filing_data["source"] = "Manual"
+        filing_data["year"] = filing["tax_prd_yr"]
+        filing_data["pdfurl"] = filing["pdf_url"]
+        try:
+            pdfdata = manual_data[filing_data["pdfurl"]]
+        except KeyError:
+            print("Missing/Misspelled manual data for "+
+                  org_data["official_name"]+" "+ str(filing_data["year"]))
+            incomplete_filings.append(str(org_data["official_name"])+" "+
+                                      str(filing_data["year"]))
+            pdfdata = {}
+        # TODO: Make error handling more specific if necessary.
+        except Exception as err:
+            print("Unexpected Erorr Occured: "+str(err))
+        filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
+        filing_data["totexp"] = pdfdata.get("Total Expenses", "NA")
+        filing_data["netinc"] = pdfdata.get("Net Income", "NA")
+        filing_data["totass"] = pdfdata.get("Total Assets", "NA")
+        filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
+        filing_data["netass"] = pdfdata.get("Net Assets", "NA")
+        org_data["filings"][filing_data["year"]] = filing_data
+    return (org_data, incomplete_filings)
 
+def write_org_data(org_data, write_function):
+    """Takes a dict of org filings and writes it to csv"""
+    for filing_year in org_data["filings"]:
+        filing_data = org_data["filings"][filing_year]
+        write_function([org_data["pronum"], org_data["official_name"],
+                        filing_data["year"], filing_data["source"],
+                        filing_data["pdfurl"], filing_data["totrev"],
+                        filing_data["totexp"], filing_data["netinc"],
+                        filing_data["totass"], filing_data["totlia"],
+                        filing_data["netass"]])
 
 def main():
     """Compiles data into csv file"""
+    overall_start_time = time.time()
+    print("Starting script...")
 
-    # keep track of start time
-    overallstart = time.time()
+    org_nums = get_list_of_orgs(LIST_OF_ORGS_FILE)
+    manual_data = get_manual_data(MANUAL_DATA_FILE)
 
-    print "Starting script..."
+    incomplete_data = []
 
-    orgnums = get_list_of_orgs("listoforgs.csv")
-    manualdata = get_manual_data("manualdata.csv")
-
-    # write up all the data in a finaldata.csv
     with open("finaldata.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter=",")
+        # TODO: Factor out the header
+        # TODO: Find a way to better ensure header is synced with manualdata.csv
         header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
                   "PDF URL", "Total Revenue", "Total Functional Expenses",
-                  "Net Income", "Total Assets", "Total Liabilities", "Net Assets"]
+                  "Net Income", "Total Assets", "Total Liabilities",
+                  "Net Assets"]
         writer.writerow(header)
 
-        # for every propublica organization
-        for orgnum in orgnums:
+        for org_num in org_nums:
+            start_time = time.time()
+            org_json = lookup_org(org_num)
+            org_data, incomplete_filings = parse_org_data(org_json, manual_data)
+            write_org_data(org_data, writer.writerow)
+            if incomplete_filings:
+                incomplete_data.append(incomplete_filings)
+            end_time = time.time()
+            print("Completed "+org_data["official_name"]+" in "+
+                  str(round((end_time - start_time), 2))+"s")
 
-            # keep track of the time it takes to analyze each org
-            start = time.time()
-
-            # grab all the data on this org
-            orgjson = lookup_org(orgnum)
-
-            # grab the name
-            officialname = orgjson["organization"]["name"]
-
-            # for all the years that have direct data in the API, grab the data
-            for filing in orgjson["filings_with_data"]:
-                datasrc = "Auto"
-                year = filing["tax_prd_yr"]
-                pdfurl = filing["pdf_url"]
-                totrev = filing["totrevenue"]
-                totexp = filing["totfuncexpns"]
-                netinc = int(totrev) - int(totexp)
-                totass = filing["totassetsend"]
-                totlia = filing["totliabend"]
-                netass = int(totass) - int(totlia)
-                writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
-
-            # for all the years without direct data, check if we have it in our manual data
-            for filing in orgjson["filings_without_data"]:
-                datasrc = "Manual"
-                year = filing["tax_prd_yr"]
-                pdfurl = filing["pdf_url"]
-                try:
-                    pdfdata = manualdata[pdfurl]
-                except:
-                    pdfdata = {}
-                totrev = pdfdata.get("Total Revenue", "NA")
-                totexp = pdfdata.get("Total Expenses", "NA")
-                netinc = pdfdata.get("Net Income", "NA")
-                totass = pdfdata.get("Total Assets", "NA")
-                totlia = pdfdata.get("Total Liabilities", "NA")
-                netass = pdfdata.get("Net Assets", "NA")
-                writer.writerow([orgnum, officialname, year, datasrc, pdfurl, totrev, totexp, netinc, totass, totlia, netass])
-
-            # end time
-            end = time.time()
-
-            # print time spent on this org
-            print "Completed " + officialname + " in " + str(round((end - start), 2)) + "s"
-
-    overallend = time.time()
-
-    # print total time spent
-    print "Total time: " + str(round((overallend - overallstart), 2)) + "s"
-
+    overall_end_time = time.time()
+    # TODO: Improve formatting of incomplete entries
+    print("Incomplete entries:")
+    for filing in incomplete_data:
+        if filing:
+            print(filing)
+    print(incomplete_data)
+    print ("Total time: "+str(round((overall_end_time - overall_start_time),
+                                    2)) + "s")
 
 if __name__ == "__main__":
     main()
