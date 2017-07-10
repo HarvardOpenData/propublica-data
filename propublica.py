@@ -1,12 +1,13 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Creates a csv file with the financial data of orgs on Propublica.
+Creates a csv file containing the financial data of specified organizations
+using ProPublica.
 
 Inputs:
-listoforgs.csv (the list of propublica numbers)
-manualdata.csv (any data that is only available via pdf should be filled
-                into this file manually)
+LIST_OF_ORGS_FILE (the list of propublica numbers)
+MANUAL_DATA_FILE (any data that is only available via pdf should be filled into
+this file manually)
 
 Output:
 finaldata.csv (data autograbbed from the API merged with manual data)
@@ -40,7 +41,6 @@ def get_manual_data(manual_data_file):
         key = row.pop('PDF URL')
         manual_data[key] = row
     return manual_data
-    # print(manual_data)
 
 def lookup_org(org_num):
     """Looks up org by ProPublica num. Returns json from ProPublica"""
@@ -48,7 +48,7 @@ def lookup_org(org_num):
     org_json = json.loads(urllib2.urlopen(url).read())
     return org_json
 
-def parse_org_json(org_json, manual_data):
+def parse_org_data(org_json, manual_data):
     """Turns json w/org data into dict for csv"""
     org_data = {}
     org_data["official_name"] = org_json["organization"]["name"]
@@ -56,6 +56,7 @@ def parse_org_json(org_json, manual_data):
     org_data["filings"] = {}
     for filing in org_json["filings_with_data"]:
         filing_data = {}
+        # TODO: Somehow factor out the fields
         filing_data["source"] = "Auto"
         filing_data["year"] = filing["tax_prd_yr"]
         filing_data["pdfurl"] = filing["pdf_url"]
@@ -80,6 +81,7 @@ def parse_org_json(org_json, manual_data):
             incomplete_filings.append(str(org_data["official_name"])+" "+
                                       str(filing_data["year"]))
             pdfdata = {}
+        # TODO: Make error handling more specific if necessary.
         except Exception as err:
             print("Unexpected Erorr Occured: "+str(err))
         filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
@@ -114,6 +116,8 @@ def main():
 
     with open("finaldata.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter=",")
+        # TODO: Factor out the header
+        # TODO: Find a way to better ensure header is synced with manualdata.csv
         header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
                   "PDF URL", "Total Revenue", "Total Functional Expenses",
                   "Net Income", "Total Assets", "Total Liabilities",
@@ -122,26 +126,24 @@ def main():
 
         for org_num in org_nums:
             start_time = time.time()
-
             org_json = lookup_org(org_num)
-            parse_results = parse_org_json(org_json, manual_data)
-            org_data = parse_results[0]
-            incomplete_filings = parse_results[1]
+            org_data, incomplete_filings = parse_org_data(org_json, manual_data)
             write_org_data(org_data, writer.writerow)
-            incomplete_data.append(incomplete_filings)
+            if incomplete_filings:
+                incomplete_data.append(incomplete_filings)
             end_time = time.time()
             print("Completed "+org_data["official_name"]+" in "+
                   str(round((end_time - start_time), 2))+"s")
 
     overall_end_time = time.time()
-    print("Incomplete Entries:")
+    # TODO: Improve formatting of incomplete entries
+    print("Incomplete entries:")
     for filing in incomplete_data:
         if filing:
             print(filing)
-    print ("Total time: " + str(round((overall_end_time - overall_start_time),
-                                      2)) + "s")
+    print(incomplete_data)
+    print ("Total time: "+str(round((overall_end_time - overall_start_time),
+                                    2)) + "s")
 
 if __name__ == "__main__":
     main()
-
-    # get_manual_data(MANUAL_DATA_FILE)
