@@ -54,6 +54,9 @@ def parse_org_data(org_json, manual_data):
     org_data["official_name"] = org_json["organization"]["name"]
     org_data["pronum"] = org_json["organization"]["id"]
     org_data["filings"] = {}
+
+    incomplete_filings = []
+
     for filing in org_json["filings_with_data"]:
         filing_data = {}
         # TODO: Somehow factor out the fields
@@ -83,7 +86,7 @@ def parse_org_data(org_json, manual_data):
             pdfdata = {}
         # TODO: Make error handling more specific if necessary.
         except Exception as err:
-            print("Unexpected Erorr Occured: "+str(err))
+            print("Unexpected Error Occured: "+str(err))
         filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
         filing_data["totexp"] = pdfdata.get("Total Expenses", "NA")
         filing_data["netinc"] = pdfdata.get("Net Income", "NA")
