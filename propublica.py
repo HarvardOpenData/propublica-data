@@ -88,7 +88,7 @@ def parse_org_data(org_json, manual_data):
         except Exception as err:
             print("Unexpected Error Occured: "+str(err))
         filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
-        filing_data["totexp"] = pdfdata.get("Total Expenses", "NA")
+        filing_data["totexp"] = pdfdata.get("Total Functional Expenses", "NA")
         filing_data["netinc"] = pdfdata.get("Net Income", "NA")
         filing_data["totass"] = pdfdata.get("Total Assets", "NA")
         filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
