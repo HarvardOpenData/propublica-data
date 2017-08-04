@@ -143,7 +143,6 @@ def main():
     for filing in incomplete_data:
         if filing:
             print(filing)
-    print(incomplete_data)
     print ("Total time: "+str(round((overall_end_time - overall_start_time),
                                     2)) + "s")
 
