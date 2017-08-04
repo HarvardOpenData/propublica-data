@@ -49,14 +49,14 @@ def lookup_org(org_num):
     return org_json
 
 def parse_org_data(org_json, manual_data):
-    """Turns json w/org data into dict for csv"""
+    """Turns json w/org data into dict to be written to csv"""
     org_data = {}
     org_data["official_name"] = org_json["organization"]["name"]
     org_data["pronum"] = org_json["organization"]["id"]
     org_data["filings"] = {}
-
     incomplete_filings = []
 
+    # TODO: Change parsing order so entries in finaldata.csv are in sensible order.
     for filing in org_json["filings_with_data"]:
         filing_data = {}
         # TODO: Somehow factor out the fields
@@ -71,9 +71,11 @@ def parse_org_data(org_json, manual_data):
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
         org_data["filings"][filing_data["year"]] = filing_data
     for filing in org_json["filings_without_data"]:
-        #TODO: Add other formats that need to be skipped. 
-        if filing["formtype_str"] == "990T": 
-            print("Skipping Manual 990T Form for " + str(org_data["official_name"]) + " " + str(filing_data["year"]))
+        #TODO: Add other formats that need to be skipped.
+        if filing["formtype_str"] == "990T":
+            print("Skipping Manual 990T Form for " +
+                  str(org_data["official_name"]) + " " +
+                  str(filing_data["year"]))
         else:
             filing_data = {}
             filing_data["source"] = "Manual"
@@ -142,7 +144,6 @@ def main():
                   str(round((end_time - start_time), 2))+"s")
 
     overall_end_time = time.time()
-    # TODO: Improve formatting of incomplete entries
     if incomplete_data:
         print("Incomplete entries:")
     for filing in incomplete_data:
