@@ -103,7 +103,7 @@ def parse_org_data(org_json, manual_data):
 
 def write_org_data(org_data, write_function):
     """Takes a dict of org filings and writes it to csv"""
-    for filing_year in org_data["filings"]:
+    for filing_year in sorted(org_data["filings"]):
         filing_data = org_data["filings"][filing_year]
         write_function([org_data["pronum"], org_data["official_name"],
                         filing_data["year"], filing_data["source"],
