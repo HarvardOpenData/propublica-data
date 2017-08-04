@@ -38,8 +38,9 @@ def get_manual_data(manual_data_file):
     manual_data = {}
     reader = csv.DictReader(open(manual_data_file))
     for row in reader:
-        key = row.pop('PDF URL')
-        manual_data[key] = row
+        club_num = row.pop('Propublica Number')
+        tax_yr = row.pop('Tax Year')
+        manual_data[club_num + "-" + tax_yr] = row
     return manual_data
 
 def lookup_org(org_num):
@@ -77,7 +78,7 @@ def parse_org_data(org_json, manual_data):
         filing_data["year"] = filing["tax_prd_yr"]
         filing_data["pdfurl"] = filing["pdf_url"]
         try:
-            pdfdata = manual_data[filing_data["pdfurl"]]
+            pdfdata = manual_data[str(org_data["pronum"]) + "-" + str(filing_data["year"])]
         except KeyError:
             print("Missing/Misspelled manual data for "+
                   org_data["official_name"]+" "+ str(filing_data["year"]))
