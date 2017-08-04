@@ -82,12 +82,14 @@ def parse_org_data(org_json, existing_data):
         filing_data["year"] = filing["tax_prd_yr"]
         filing_data["pdfurl"] = filing["pdf_url"]
         try:
-            pdfdata = existing_data[filing_data["pdfurl"]]
+            # see if we already have the data given this pdf, remove if we do
+            # now, only the outdated pdf urls will remain in existing_data
+            pdfdata = existing_data.pop(filing_data["pdfurl"])
+
         except KeyError:
-            print("Missing/Misspelled existing data for "+
-                  org_data["official_name"]+" "+ str(filing_data["year"]))
-            incomplete_filings.append(str(org_data["official_name"])+" "+
-                                      str(filing_data["year"]))
+            org_and_year = org_data["official_name"]+" "+ str(filing_data["year"])
+            print("Missing data for " + org_and_year)
+            incomplete_filings.append(org_and_year)
             pdfdata = {}
         # TODO: Make error handling more specific if necessary.
         except Exception as err:
@@ -145,7 +147,15 @@ def main():
             print("Completed "+org_data["official_name"]+" in "+
                   str(round((end_time - start_time), 2))+"s")
 
+        if existing_data == {}:
+            print("All your existing data was used!")
+        else:
+            print("The following pdf links are outdated and are not included in the final data.")
+            for oldlink in existing_data:
+                print(oldlink)
+
     overall_end_time = time.time()
+
     # TODO: Improve formatting of incomplete entries
     print("Incomplete entries:")
     for filing in incomplete_data:
