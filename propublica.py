@@ -71,7 +71,6 @@ def parse_org_data(org_json, manual_data):
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
         org_data["filings"][filing_data["year"]] = filing_data
     for filing in org_json["filings_without_data"]:
-        incomplete_filings = []
         filing_data = {}
         filing_data["source"] = "Manual"
         filing_data["year"] = filing["tax_prd_yr"]
