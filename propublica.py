@@ -71,28 +71,34 @@ def parse_org_data(org_json, manual_data):
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
         org_data["filings"][filing_data["year"]] = filing_data
     for filing in org_json["filings_without_data"]:
-        filing_data = {}
-        filing_data["source"] = "Manual"
-        filing_data["year"] = filing["tax_prd_yr"]
-        filing_data["pdfurl"] = filing["pdf_url"]
-        try:
+        if filing["formtype_str"] == "990T": 
+            print("Skipping Manual 990T Form for " + str(org_data["official_name"]) + " " + str(filing_data["year"]))
+        else:
+            filing_data = {}
+            filing_data["source"] = "Manual"
+            filing_data["year"] = filing["tax_prd_yr"]
+            filing_data["pdfurl"] = filing["pdf_url"]
+            print(str(org_data["official_name"]) + " " + str(filing_data["year"]))
+            print(filing)
             pdfdata = manual_data[filing_data["pdfurl"]]
-        except KeyError:
-            print("Missing/Misspelled manual data for "+
-                  org_data["official_name"]+" "+ str(filing_data["year"]))
-            incomplete_filings.append(str(org_data["official_name"])+" "+
-                                      str(filing_data["year"]))
-            pdfdata = {}
-        # TODO: Make error handling more specific if necessary.
-        except Exception as err:
-            print("Unexpected Error Occured: "+str(err))
-        filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
-        filing_data["totexp"] = pdfdata.get("Total Functional Expenses", "NA")
-        filing_data["netinc"] = pdfdata.get("Net Income", "NA")
-        filing_data["totass"] = pdfdata.get("Total Assets", "NA")
-        filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
-        filing_data["netass"] = pdfdata.get("Net Assets", "NA")
-        org_data["filings"][filing_data["year"]] = filing_data
+            # try:
+            #     pdfdata = manual_data[filing_data["pdfurl"]]
+            # except KeyError:
+            #     print("Missing/Misspelled manual data for "+
+            #           org_data["official_name"]+" "+ str(filing_data["year"]))
+            #     incomplete_filings.append(str(org_data["official_name"])+" "+
+            #                               str(filing_data["year"]))
+            #     pdfdata = {}
+            # # TODO: Make error handling more specific if necessary.
+            # except Exception as err:
+            #     print("Unexpected Error Occured: "+str(err))
+            filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
+            filing_data["totexp"] = pdfdata.get("Total Functional Expenses", "NA")
+            filing_data["netinc"] = pdfdata.get("Net Income", "NA")
+            filing_data["totass"] = pdfdata.get("Total Assets", "NA")
+            filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
+            filing_data["netass"] = pdfdata.get("Net Assets", "NA")
+            org_data["filings"][filing_data["year"]] = filing_data
     return (org_data, incomplete_filings)
 
 def write_org_data(org_data, write_function):
