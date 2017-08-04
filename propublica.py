@@ -6,11 +6,10 @@ using ProPublica.
 
 Inputs:
 LIST_OF_ORGS_FILE (the list of propublica numbers)
-MANUAL_DATA_FILE (any data that is only available via pdf should be filled into
-this file manually)
+EXISTING_DATA_FILE (any data that is already compiled, including manual data)
 
 Output:
-finaldata.csv (data autograbbed from the API merged with manual data)
+finaldata.csv (data autograbbed from the API merged with existing data)
 """
 
 from __future__ import print_function
@@ -20,7 +19,7 @@ import time
 import urllib2
 
 LIST_OF_ORGS_FILE = "listoforgs.csv"
-MANUAL_DATA_FILE = "manualdata.csv"
+EXISTING_DATA_FILE = "existingdata.csv"
 
 def get_list_of_orgs(list_of_orgs_file):
     """Returns list of orgs. Assumes first column is the ProPublica numbers."""
@@ -33,14 +32,20 @@ def get_list_of_orgs(list_of_orgs_file):
             org_nums.append(row[0])
     return org_nums
 
-def get_manual_data(manual_data_file):
-    """Stores data from a csv into a dict format with the pdfurl as the key."""
-    manual_data = {}
-    reader = csv.DictReader(open(manual_data_file))
+def get_existing_data(existing_data_file):
+    """
+    Stores data from a csv into a dict format with the pdfurl as the key.
+    Only looks at data that is manual, as anything that is auto will be
+    re-grabbed from the API.
+    """
+    existing_data = {}
+    reader = csv.DictReader(open(existing_data_file))
     for row in reader:
-        key = row.pop('PDF URL')
-        manual_data[key] = row
-    return manual_data
+        data_src = row.pop('Data Source')
+        if data_src == 'Manual':
+            pdfurl = row.pop('PDF URL')
+            existing_data[pdfurl] = row
+    return existing_data
 
 def lookup_org(org_num):
     """Looks up org by ProPublica num. Returns json from ProPublica"""
@@ -48,7 +53,7 @@ def lookup_org(org_num):
     org_json = json.loads(urllib2.urlopen(url).read())
     return org_json
 
-def parse_org_data(org_json, manual_data):
+def parse_org_data(org_json, existing_data):
     """Turns json w/org data into dict for csv"""
     org_data = {}
     org_data["official_name"] = org_json["organization"]["name"]
@@ -77,9 +82,9 @@ def parse_org_data(org_json, manual_data):
         filing_data["year"] = filing["tax_prd_yr"]
         filing_data["pdfurl"] = filing["pdf_url"]
         try:
-            pdfdata = manual_data[filing_data["pdfurl"]]
+            pdfdata = existing_data[filing_data["pdfurl"]]
         except KeyError:
-            print("Missing/Misspelled manual data for "+
+            print("Missing/Misspelled existing data for "+
                   org_data["official_name"]+" "+ str(filing_data["year"]))
             incomplete_filings.append(str(org_data["official_name"])+" "+
                                       str(filing_data["year"]))
@@ -97,9 +102,11 @@ def parse_org_data(org_json, manual_data):
     return (org_data, incomplete_filings)
 
 def write_org_data(org_data, write_function):
-    """Takes a dict of org filings and writes it to csv"""
-    for filing_year in org_data["filings"]:
-        filing_data = org_data["filings"][filing_year]
+    """Takes a dict of org filings and writes it to csv in year order"""
+    years = org_data["filings"].keys()
+    years.sort()
+    for year in years:
+        filing_data = org_data["filings"][year]
         write_function([org_data["pronum"], org_data["official_name"],
                         filing_data["year"], filing_data["source"],
                         filing_data["pdfurl"], filing_data["totrev"],
@@ -113,14 +120,14 @@ def main():
     print("Starting script...")
 
     org_nums = get_list_of_orgs(LIST_OF_ORGS_FILE)
-    manual_data = get_manual_data(MANUAL_DATA_FILE)
+    existing_data = get_existing_data(EXISTING_DATA_FILE)
 
     incomplete_data = []
 
     with open("finaldata.csv", "wb") as csv_file:
         writer = csv.writer(csv_file, delimiter=",")
         # TODO: Factor out the header
-        # TODO: Find a way to better ensure header is synced with manualdata.csv
+        # TODO: Find a way to better ensure header is synced with existingdata.csv
         header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
                   "PDF URL", "Total Revenue", "Total Functional Expenses",
                   "Net Income", "Total Assets", "Total Liabilities",
@@ -130,7 +137,7 @@ def main():
         for org_num in org_nums:
             start_time = time.time()
             org_json = lookup_org(org_num)
-            org_data, incomplete_filings = parse_org_data(org_json, manual_data)
+            org_data, incomplete_filings = parse_org_data(org_json, existing_data)
             write_org_data(org_data, writer.writerow)
             if incomplete_filings:
                 incomplete_data.append(incomplete_filings)
