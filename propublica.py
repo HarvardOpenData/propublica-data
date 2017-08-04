@@ -76,6 +76,13 @@ def parse_org_data(org_json, existing_data):
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
         org_data["filings"][filing_data["year"]] = filing_data
     for filing in org_json["filings_without_data"]:
+
+        # TODO: we need to decide what to do when there are multiple forms for
+        # same year. Currently, our script uses the year as a key for
+        # org_data["filings"] so when there are multiple forms, the last one
+        # just overrides everything. are we okay with just having any form on there?
+        # if so, we don't need to do anything
+
         incomplete_filings = []
         filing_data = {}
         filing_data["source"] = "Manual"
@@ -85,10 +92,9 @@ def parse_org_data(org_json, existing_data):
             # see if we already have the data given this pdf, remove if we do
             # now, only the outdated pdf urls will remain in existing_data
             pdfdata = existing_data.pop(filing_data["pdfurl"])
-
         except KeyError:
             org_and_year = org_data["official_name"]+" "+ str(filing_data["year"])
-            print("Missing data for " + org_and_year)
+            print("Missing data or extra pdf for " + org_and_year)
             incomplete_filings.append(org_and_year)
             pdfdata = {}
         # TODO: Make error handling more specific if necessary.
@@ -100,6 +106,9 @@ def parse_org_data(org_json, existing_data):
         filing_data["totass"] = pdfdata.get("Total Assets", "NA")
         filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
         filing_data["netass"] = pdfdata.get("Net Assets", "NA")
+
+        # TODO: decide here whether we're okay with using the year as key
+        # it's fine if we decide we only need one form.
         org_data["filings"][filing_data["year"]] = filing_data
     return (org_data, incomplete_filings)
 
