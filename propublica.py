@@ -76,6 +76,7 @@ def parse_org_data(org_json, manual_data):
             print("Skipping Manual 990T Form for " +
                   str(org_data["official_name"]) + " " +
                   str(filing_data["year"]))
+            print("If you'd like to view at this filling, please visit " + filing_data["pdfurl"] )
         else:
             filing_data = {}
             filing_data["source"] = "Manual"
