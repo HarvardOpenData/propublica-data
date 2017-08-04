@@ -143,7 +143,8 @@ def main():
 
     overall_end_time = time.time()
     # TODO: Improve formatting of incomplete entries
-    print("Incomplete entries:")
+    if incomplete_data:
+        print("Incomplete entries:")
     for filing in incomplete_data:
         if filing:
             print(filing)
