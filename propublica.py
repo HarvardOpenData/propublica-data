@@ -65,12 +65,11 @@ def parse_org_data(org_json, existing_data):
     # TODO: Change parsing order so entries in finaldata.csv are in sensible order.
     for filing in org_json["filings_with_data"]:
         filing_data = {}
-        print(filing)
         # TODO: Somehow factor out the fields
         filing_data["source"] = "Auto"
         filing_data["year"] = filing["tax_prd_yr"]
         try: 
-            filing_data["type"] = filing["formtype_str"]
+            filing_data["type"] = filing["formtype"]
         except Exception:
             filing_data["type"] = "NA"
         filing_data["pdfurl"] = filing["pdf_url"]
