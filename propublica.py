@@ -69,7 +69,12 @@ def parse_org_data(org_json, existing_data):
         filing_data["source"] = "Auto"
         filing_data["year"] = filing["tax_prd_yr"]
         try: 
-            filing_data["type"] = filing["formtype"]
+            if filing["formtype"] == 0:
+                filing_data["type"] = "Likely 990"
+            elif filing["formtype"] == 1:
+                filing_data["type"] = "Likely 990EZ"
+            else:
+                filing_data["type"] = "NA"
         except Exception:
             filing_data["type"] = "NA"
         filing_data["pdfurl"] = filing["pdf_url"]
