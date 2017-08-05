@@ -79,12 +79,6 @@ def parse_org_data(org_json, existing_data):
         filing_data["totass"] = filing["totassetsend"]
         filing_data["totlia"] = filing["totliabend"]
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
-        # TODO: Add code here that increments name if > 1 for same year
-        # try:
-        #     _ = org_data["filings"][filing_data["year"]]
-        #     print("Overwriting data...")
-        # except KeyError:
-        #     pass
         
         org_data["filings"][filing_data["pdfurl"]] = filing_data
     for filing in org_json["filings_without_data"]:
@@ -94,7 +88,6 @@ def parse_org_data(org_json, existing_data):
         # org_data["filings"] so when there are multiple forms, the last one
         # just overrides everything. are we okay with just having any form on there?
         # if so, we don't need to do anything
-
         filing_data = {}
         filing_data["source"] = "Manual"
         filing_data["year"] = filing["tax_prd_yr"]
