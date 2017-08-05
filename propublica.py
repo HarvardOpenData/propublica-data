@@ -75,7 +75,7 @@ def parse_org_data(org_json, existing_data):
         filing_data["totass"] = filing["totassetsend"]
         filing_data["totlia"] = filing["totliabend"]
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
-        
+
         org_data["filings"][filing_data["pdfurl"]] = filing_data
     for filing in org_json["filings_without_data"]:
 
@@ -160,8 +160,22 @@ def main():
             print("All your existing data was used!")
         else:
             print("The following pdf links are outdated and are not included in the final data.")
-            for oldlink in existing_data:
-                print(oldlink)
+            with open("outdated.csv", "wb") as csv_file:
+                writer = csv.writer(csv_file, delimiter=",")
+                writer.writerow(header)
+                for oldlink in existing_data:
+                    print(oldlink)
+                    olddatarow = []
+                    for categ in header:
+                        if categ == "PDF URL":
+                            olddatarow.append(oldlink)
+                        elif categ == "Data Source":
+                            olddatarow.append("Manual")
+                        else:
+                            olddatarow.append(existing_data[oldlink][categ])
+                    print(olddatarow)
+                    writer.writerow(olddatarow)
+
 
     overall_end_time = time.time()
 
