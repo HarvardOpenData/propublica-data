@@ -75,12 +75,6 @@ def parse_org_data(org_json, existing_data):
         filing_data["totass"] = filing["totassetsend"]
         filing_data["totlia"] = filing["totliabend"]
         filing_data["netass"] = filing["totassetsend"] - filing["totliabend"]
-        # TODO: Add code here that increments name if > 1 for same year
-        # try:
-        #     _ = org_data["filings"][filing_data["year"]]
-        #     print("Overwriting data...")
-        # except KeyError:
-        #     pass
         
         org_data["filings"][filing_data["year"]] = filing_data
     for filing in org_json["filings_without_data"]:
