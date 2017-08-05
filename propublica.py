@@ -82,7 +82,7 @@ def parse_org_data(org_json, existing_data):
         # except KeyError:
         #     pass
         
-        org_data["filings"][filing_data["year"]] = filing_data
+        org_data["filings"][filing_data["pdfurl"]] = filing_data
     for filing in org_json["filings_without_data"]:
 
         # TODO: we need to decide what to do when there are multiple forms for
@@ -121,15 +121,15 @@ def parse_org_data(org_json, existing_data):
 
             # TODO: decide here whether we're okay with using the year as key
             # it's fine if we decide we only need one form.
-            org_data["filings"][filing_data["year"]] = filing_data
+            org_data["filings"][filing_data["pdfurl"]] = filing_data
     return (org_data, incomplete_filings)
 
 def write_org_data(org_data, write_function):
     """Takes a dict of org filings and writes it to csv in year order"""
-    years = org_data["filings"].keys()
-    years.sort()
-    for year in years:
-        filing_data = org_data["filings"][year]
+    pdfurls = org_data["filings"].keys()
+    pdfurls.sort()
+    for pdfurl in pdfurls:
+        filing_data = org_data["filings"][pdfurl]
         write_function([org_data["pronum"], org_data["official_name"],
                         filing_data["year"], filing_data["source"],
                         filing_data["pdfurl"], filing_data["totrev"],
