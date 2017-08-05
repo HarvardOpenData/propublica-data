@@ -65,9 +65,14 @@ def parse_org_data(org_json, existing_data):
     # TODO: Change parsing order so entries in finaldata.csv are in sensible order.
     for filing in org_json["filings_with_data"]:
         filing_data = {}
+        print(filing)
         # TODO: Somehow factor out the fields
         filing_data["source"] = "Auto"
         filing_data["year"] = filing["tax_prd_yr"]
+        try: 
+            filing_data["type"] = filing["formtype_str"]
+        except Exception:
+            filing_data["type"] = "NA"
         filing_data["pdfurl"] = filing["pdf_url"]
         filing_data["totrev"] = filing["totrevenue"]
         filing_data["totexp"] = filing["totfuncexpns"]
@@ -90,38 +95,34 @@ def parse_org_data(org_json, existing_data):
         # org_data["filings"] so when there are multiple forms, the last one
         # just overrides everything. are we okay with just having any form on there?
         # if so, we don't need to do anything
-        if filing["formtype_str"] == "990T":
-            print("Skipping Manual 990T Form for " +
-                  str(org_data["official_name"]) + " " +
-                  str(filing_data["year"]))
-            print("If you'd like to view at this filling, please visit " + filing_data["pdfurl"] )
-        else:
-            filing_data = {}
-            filing_data["source"] = "Manual"
-            filing_data["year"] = filing["tax_prd_yr"]
-            filing_data["pdfurl"] = filing["pdf_url"]
-            try:
-                # see if we already have the data given this pdf, remove if we do
-                # now, only the outdated pdf urls will remain in existing_data
-                pdfdata = existing_data.pop(filing_data["pdfurl"])
-            except KeyError:
-                org_and_year = org_data["official_name"]+" "+ str(filing_data["year"])
-                print("Missing data or extra pdf for " + org_and_year)
-                incomplete_filings.append(org_and_year)
-                pdfdata = {}
-            # TODO: Make error handling more specific if necessary.
-            except Exception as err:
-                print("Unexpected Error Occured: "+str(err))
-            filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
-            filing_data["totexp"] = pdfdata.get("Total Functional Expenses", "NA")
-            filing_data["netinc"] = pdfdata.get("Net Income", "NA")
-            filing_data["totass"] = pdfdata.get("Total Assets", "NA")
-            filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
-            filing_data["netass"] = pdfdata.get("Net Assets", "NA")
 
-            # TODO: decide here whether we're okay with using the year as key
-            # it's fine if we decide we only need one form.
-            org_data["filings"][filing_data["pdfurl"]] = filing_data
+        filing_data = {}
+        filing_data["source"] = "Manual"
+        filing_data["year"] = filing["tax_prd_yr"]
+        filing_data["pdfurl"] = filing["pdf_url"]
+        try:
+            # see if we already have the data given this pdf, remove if we do
+            # now, only the outdated pdf urls will remain in existing_data
+            pdfdata = existing_data.pop(filing_data["pdfurl"])
+        except KeyError:
+            org_and_year = org_data["official_name"]+" "+ str(filing_data["year"])
+            print("Missing data or extra pdf for " + org_and_year)
+            incomplete_filings.append(org_and_year)
+            pdfdata = {}
+        # TODO: Make error handling more specific if necessary.
+        except Exception as err:
+            print("Unexpected Error Occured: "+str(err))
+        filing_data["type"] = pdfdata.get("Form Type", "NA")
+        filing_data["totrev"] = pdfdata.get("Total Revenue", "NA")
+        filing_data["totexp"] = pdfdata.get("Total Functional Expenses", "NA")
+        filing_data["netinc"] = pdfdata.get("Net Income", "NA")
+        filing_data["totass"] = pdfdata.get("Total Assets", "NA")
+        filing_data["totlia"] = pdfdata.get("Total Liabilities", "NA")
+        filing_data["netass"] = pdfdata.get("Net Assets", "NA")
+
+        # TODO: decide here whether we're okay with using the year as key
+        # it's fine if we decide we only need one form.
+        org_data["filings"][filing_data["pdfurl"]] = filing_data
     return (org_data, incomplete_filings)
 
 def write_org_data(org_data, write_function):
@@ -131,7 +132,7 @@ def write_org_data(org_data, write_function):
     for pdfurl in pdfurls:
         filing_data = org_data["filings"][pdfurl]
         write_function([org_data["pronum"], org_data["official_name"],
-                        filing_data["year"], filing_data["source"],
+                        filing_data["year"], filing_data["type"], filing_data["source"],
                         filing_data["pdfurl"], filing_data["totrev"],
                         filing_data["totexp"], filing_data["netinc"],
                         filing_data["totass"], filing_data["totlia"],
@@ -151,7 +152,7 @@ def main():
         writer = csv.writer(csv_file, delimiter=",")
         # TODO: Factor out the header
         # TODO: Find a way to better ensure header is synced with existingdata.csv
-        header = ["Propublica Number", "Club Name", "Tax Year", "Data Source",
+        header = ["Propublica Number", "Club Name", "Tax Year", "Form Type", "Data Source",
                   "PDF URL", "Total Revenue", "Total Functional Expenses",
                   "Net Income", "Total Assets", "Total Liabilities",
                   "Net Assets"]
